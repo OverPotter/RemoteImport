@@ -1,17 +1,16 @@
 import importlib
 import sys
-from typing import Union
 
 import re
 import requests
 
 from config import HEADERS
-from loader import ModuleLoader
-from finder import ModuleFinder
-from path_constructor import StorageViewCreater
+from util.loader import ModuleLoader
+from util.finder import ModuleFinder
+from util.path_constructor import StorageViewCreater
 
 
-class ImporterModule(StorageViewCreater):
+class HTTPImporterModule(StorageViewCreater):
     def __init__(self):
         super().__init__()
         self._modules_for_import: list = []
@@ -46,23 +45,18 @@ class ImporterModule(StorageViewCreater):
             self._import_module(module_name, module)
         except ModuleNotFoundError:
             self._get_modules_for_import(module[module_name])
-            print(self._modules_for_import)
             for m in self._modules_for_import:
                 self.run_importer(m)
 
 
 if __name__ == '__main__':
-    g = ImporterModule()
+    HTTPImporterModule().run_importer('foo')
 
-    g.run_importer('foo')
-    # print(g.is_module_imported("foo"))
     import bar
-
     bar.bar()
     import foo
-
-    # from foo import Foo
-    # Foo()
+    from foo import Foo
+    Foo()
     foo.foo()
     import qwe
     qwe.qwe()

@@ -47,16 +47,3 @@ class HTTPImporterModule(StorageViewCreater):
             self._get_modules_for_import(module[module_name])
             for m in self._modules_for_import:
                 self.run_importer(m)
-
-
-if __name__ == '__main__':
-    HTTPImporterModule().run_importer('foo')
-
-    import bar
-    bar.bar()
-    import foo
-    from foo import Foo
-    Foo()
-    foo.foo()
-    import qwe
-    qwe.qwe()

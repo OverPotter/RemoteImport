@@ -42,9 +42,3 @@ class DynamicImport:
         except Exception as e:
             print(f"[-] Exception: {e}")
             return False
-
-
-if __name__ == '__main__':
-    r = DynamicImport()
-    r.append_package_in_sys()
-    r.test_import_module_from_spec()

